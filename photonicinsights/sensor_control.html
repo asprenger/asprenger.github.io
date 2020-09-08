@@ -1,0 +1,251 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="description" content="Sample illustrating the use of Web Bluetooth / Characteristic Properties.">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Device Control</title>
+
+    <script>
+      // Add a global error event listener early on in the page load, to help ensure that browsers
+      // which don't support specific functionality still end up displaying a meaningful message.
+      window.addEventListener('error', function(error) {
+        console.error(error);
+        if (ChromeSamples && ChromeSamples.setStatus) {
+          ChromeSamples.setStatus(error.message + ' (Your browser may not support this feature.)');
+          error.preventDefault();
+        }
+      });
+    </script>
+  </head>
+
+  <body>
+    <h1>Device Control</h1>
+    <p>
+      Start reading data on the device.
+    </p>
+    <form>
+      <button id="startScan">Start scan</button>
+      <button id="stopScan">Stop scan</button>
+      <button id="saveData">Save data</button>
+    </form>
+
+<script>
+  var ChromeSamples = {
+    log: function() {
+      var line = Array.prototype.slice.call(arguments).map(function(argument) {
+        return typeof argument === 'string' ? argument : JSON.stringify(argument);
+      }).join(' ');
+
+      document.querySelector('#log').textContent += line + '\n';
+    },
+
+    clearLog: function() {
+      document.querySelector('#log').textContent = '';
+    },
+
+    setStatus: function(status) {
+      document.querySelector('#status').textContent = status;
+    },
+
+    setContent: function(newContent) {
+      var content = document.querySelector('#content');
+      while(content.hasChildNodes()) {
+        content.removeChild(content.lastChild);
+      }
+      content.appendChild(newContent);
+    }
+  };
+</script>
+
+    <h3>Live Output</h3>
+    <div id="output" class="output">
+      <div id="content"></div>
+      <div id="status"></div>
+      <pre id="log"></pre>
+    </div>
+
+<script>
+
+var connected_device;
+var sensorStateCharacteristic;
+var sensorDataCharacteristic;
+var sensorData = '';
+
+function onStartScanButtonClick() {
+  let serviceUuid = '0000a020-0000-1000-8000-00805f9b34fb'
+  let sensorStateCharacteristicUuid = '0000a021-0000-1000-8000-00805f9b34fb'
+  let sensorDataCharacteristicUuid = '0000a022-0000-1000-8000-00805f9b34fb'
+
+  let gatt_service = null;
+  sensorData = '';
+
+  document.querySelector('#startScan').disabled = true;
+  document.querySelector('#stopScan').disabled = true;
+  document.querySelector('#saveData').disabled = true;
+
+  log('Requesting Bluetooth Device...');
+  navigator.bluetooth.requestDevice({filters: [{services: [serviceUuid]}]})
+  .then(device => {
+    log('Connecting to GATT Server...');
+    connected_device = device;
+    return device.gatt.connect();
+  })
+  .then(server => {
+    log('Getting Service...');
+    return server.getPrimaryService(serviceUuid);
+  })
+  .then(service => {
+    log('Getting Characteristic...');
+    gatt_service = service;
+    return service.getCharacteristic(sensorStateCharacteristicUuid);
+  })
+  .then(characteristic => {
+    log('Start reading sensor...');
+    sensorStateCharacteristic = characteristic;
+    let resetEnergyExpended = Uint8Array.of(1);
+    return characteristic.writeValue(resetEnergyExpended);
+  })
+  .then(_ => {
+    log('Getting Characteristic...');
+    return gatt_service.getCharacteristic(sensorDataCharacteristicUuid);
+  })
+  .then(characteristic => {
+    log('Start notifications');
+    sensorDataCharacteristic = characteristic;
+    return characteristic.startNotifications();
+  })  
+  .then(_ => {
+    let x = sensorDataCharacteristic.addEventListener('characteristicvaluechanged', 
+      handleNotifications);
+    console.info(x);
+    return x;
+  })
+  .then(_ => {
+    document.querySelector('#stopScan').disabled = false;
+    log('Success');
+  })
+  .catch(error => {
+    document.querySelector('#startScan').disabled = false;
+    log('Argh! ' + error);
+  });
+}
+
+function onStopScanButtonClick() {
+  if (sensorStateCharacteristic) {
+    log('Stop reading sensor...');
+    sensorDataCharacteristic.removeEventListener('characteristicvaluechanged', 
+      handleNotifications)
+    sensorDataCharacteristic.stopNotifications()
+    .then(_ => {
+      let resetEnergyExpended = Uint8Array.of(0);
+      return sensorStateCharacteristic.writeValue(resetEnergyExpended)
+    })
+    .then(_ => {
+      document.querySelector('#startScan').disabled = false;
+      document.querySelector('#stopScan').disabled = true;
+      document.querySelector('#saveData').disabled = false;
+      log('Success');
+    })
+    .catch(error => {
+      log('Argh! ' + error);
+    });
+  }
+}  
+
+function onSaveDataButtonClick() {
+  if ('Blob' in window) {
+    var fileName = prompt('Please enter file name to save', 'SensorData_' + new Date().toISOString().replace(/:/g, '-') + '.csv');
+    if (fileName) {
+      var textToWrite = sensorData;
+      var textFileAsBlob = new Blob([textToWrite], { type: 'text/plain' });
+
+      if ('msSaveOrOpenBlob' in navigator) {
+        navigator.msSaveOrOpenBlob(textFileAsBlob, fileName);
+      } else {
+        var downloadLink = document.createElement('a');
+        downloadLink.download = fileName;
+        downloadLink.innerHTML = 'Download File';
+        if ('webkitURL' in window) {
+          // Chrome allows the link to be clicked without actually adding it to the DOM.
+          downloadLink.href = window.webkitURL.createObjectURL(textFileAsBlob);
+        } else {
+          // Firefox requires the link to be added to the DOM before it can be clicked.
+          downloadLink.href = window.URL.createObjectURL(textFileAsBlob);
+          downloadLink.onclick = destroyClickedElement;
+          downloadLink.style.display = 'none';
+          document.body.appendChild(downloadLink);
+        }
+        downloadLink.click();
+      }
+    }
+  } else {
+    alert('Your browser does not support the HTML5 Blob.');
+  }
+}  
+
+function handleNotifications(event) {
+  let value = event.target.value;
+  let a = [];
+  for (let i = 0; i < value.byteLength; i++) {
+    a.push(String.fromCharCode(value.getUint8(i)));
+  }
+  let line = a.join('');
+  if (!sensorData) {
+    sensorData = line;
+  }
+  else {
+    sensorData = sensorData + '\n' + line;
+  }  
+  log('> ' + line);
+}
+
+</script>
+
+<script>
+  document.querySelector('#startScan').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      ChromeSamples.clearLog();
+      onStartScanButtonClick();
+    }
+  });
+
+  document.querySelector('#stopScan').disabled = true;
+  document.querySelector('#stopScan').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      ChromeSamples.clearLog();
+      onStopScanButtonClick();
+    }
+  });
+
+  document.querySelector('#saveData').disabled = true;
+  document.querySelector('#saveData').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    ChromeSamples.clearLog();
+    onSaveDataButtonClick();
+  });
+</script>
+
+<script>
+  log = ChromeSamples.log;
+
+  function isWebBluetoothEnabled() {
+    if (navigator.bluetooth) {
+      return true;
+    } else {
+      ChromeSamples.setStatus('Web Bluetooth API is not available.\n' +
+          'Please make sure the "Experimental Web Platform features" flag is enabled.');
+      return false;
+    }
+  }
+</script>
+
+  </body>
+</html>
