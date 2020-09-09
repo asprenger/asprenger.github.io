@@ -23,9 +23,36 @@
 
   <body>
     <h1>Device Control</h1>
+    <p>A simple UI to control the Photonic Insights sensor device.</p>
     <p>
-      Start reading data on the device.
+      The UI communicates with the device using the <a href="https://webbluetoothcg.github.io/web-bluetooth/" target="_blank"> Web Bluetooth API</a>.
+      The Web Bluetooth API specification has not been finalized yet and is not supported on all browsers and operating systems. For
+      a list of supported platform see the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#Browser_compatibility" target="_blank">Browser compatibility matrix</a>.
     </p>
+    <p>
+      This version has been tested on the following systems:
+      <ul>
+        <li>Mac OSX 10.14, Chrome 84</li>
+        <li>Windows 10, Microsoft Edge</li>
+      </ul>
+    </p>
+
+    <p>
+      For Chrome you have to enable the "Experimental Web Platform" features. Open "chrome://flags" in a new tab, search for "Experimental Web Platform" and enable the option.
+    </p>
+
+    <p>
+      Workflow:
+      <ol>
+        <li>Enable Bluetooth in the operating system</li>
+        <li>Press "Start scan" button</li>
+        <li>Wait for "BLE Data Sampling" showing up in the dialog. This might take some time.</li>
+        <li>Select "BLE Data Sampling" and press the "Pair" button. This connects the UI to the device, this again might take some time. After the connection is established sensor readings are printed on the page.</li>        
+        <li>Press button "Stop scan" when enough data has been collected.</li>
+        <li>Press button "Save data" to save the data in a local file.</li>
+      </ol>  
+    </p>
+
     <form>
       <button id="startScan">Start scan</button>
       <button id="stopScan">Stop scan</button>
@@ -91,6 +118,7 @@ function onStartScanButtonClick() {
   .then(device => {
     log('Connecting to GATT Server...');
     connected_device = device;
+    device.addEventListener('gattserverdisconnected', onDisconnected);
     return device.gatt.connect();
   })
   .then(server => {
@@ -185,6 +213,15 @@ function onSaveDataButtonClick() {
     alert('Your browser does not support the HTML5 Blob.');
   }
 }  
+
+function onDisconnected(event) {
+  document.querySelector('#startScan').disabled = false;
+  document.querySelector('#stopScan').disabled = true;
+  document.querySelector('#saveData').disabled = true;
+  let device = event.target;
+  log('Device ' + device.name + ' is disconnected.');
+
+}
 
 function handleNotifications(event) {
   let value = event.target.value;
