@@ -1,0 +1,135 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="https://secureservercdn.net/160.153.137.218/mxu.1b0.myftpupload.com/wp-content/uploads/2020/03/cropped-Logo_60pt_RGB-32x32.png" sizes="32x32" />
+
+    <title>Falcon Sensor UI</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="https://getbootstrap.com/docs/4.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="https://getbootstrap.com/docs/4.0/examples/sticky-footer-navbar/sticky-footer-navbar.css" rel="stylesheet">
+
+    <!-- Main application -->
+    <script type="text/javascript" src="main.js"></script>
+    
+  </head>
+
+  <body>
+
+    <!-- Header -->
+    <header>
+      <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
+        <a class="navbar-brand" href="#">Falcon Sensor UI</a>
+      </nav>
+    </header>
+
+    <!-- Page content -->
+    <main role="main" class="container">
+      <!--
+      <h2 class="mt-3">Sticky footer with fixed navbar</h2>
+      <p class="lead">Pin a fixed-height footer to the bottom of the viewport in desktop browsers with this custom HTML and CSS. A fixed navbar has been added with <code>padding-top: 60px;</code> on the <code>body &gt; .container</code>.</p>
+      <p>Back to <a href="../sticky-footer/">the default sticky footer</a> minus the navbar.</p>
+
+      <p>A UI to control the Photonic Insights sensor device.</p>
+      -->
+      <form class="mt-3">
+        <button id="connect" class="btn btn-primary">Connect</button>
+        <button id="scan" class="btn btn-primary">Scan</button>
+        <button id="info" class="btn btn-primary">Info</button>
+        <button id="save" class="btn btn-primary">Save</button>
+        <button id="disconnect" class="btn btn-primary">Disconnect</button>
+      </form>
+
+      <div>
+        <pre id="log"></pre>
+      </div>
+      <h3 class="mt-3">Status:</h3>
+      <div id="status" class="alert alert-primary" role="alert"></div>
+      <div id="plotlyDiv"></div>
+      <div id="spectrumDiv"></div>
+    </main>
+
+<!-- Modal -->
+<div class="modal fade" id="modalDialog" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="exampleModalLabel">Fingerprint</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div id="modalDialogBody" class="modal-body">
+        <div id="qrcode"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+  if (!isWebBluetoothEnabled()) {
+    log('Web Bluetooth not available');
+  }
+
+  document.querySelector('#connect').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      onConnectButtonClick();
+    }
+  });
+
+  document.querySelector('#scan').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      onScanButtonClick();
+    }
+  });
+
+  document.querySelector('#info').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      onInfoButtonClick();
+    }
+  });
+
+  document.querySelector('#disconnect').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      onDisconnectButtonClick();
+    }
+  });
+
+  document.querySelector('#save').addEventListener('click', function(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (isWebBluetoothEnabled()) {
+      onSaveButtonClick();
+    }
+  });
+
+  setStatus('Disconnected');
+  resetButtons();
+</script>
+
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://getbootstrap.com/docs/4.0/dist/js/bootstrap.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://asprenger.github.io/photonicinsights/cbor.js"></script>
+    <script src="https://asprenger.github.io/photonicinsights/forge-sha256.min.js"></script>
+  </body>
+</html>
